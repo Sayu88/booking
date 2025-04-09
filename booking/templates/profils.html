@@ -1,0 +1,26 @@
+{%extends "izkartojums.html"%}
+
+{% block saturs %}
+
+<div style="background-color: rgb(18, 41, 78); height: 45px; display: flex; justify-content: space-between;
+ align-items: center; padding: 0 20px;">
+    <h2 style="color: azure;">airBaltic Training</h2>
+    <form action="{{ url_for('iziet') }}" method="post" style="margin: 0;">
+        <button type="submit" class="btn btn-danger btn-sm">Izrakstīties</button>
+    </form>
+</div>
+
+<nav style="background-color: #CDDA32; padding: 10px; display: flex; justify-content: center; gap: 20px;">
+    <a href="{{ url_for('home') }}" style="text-decoration: none; color: black; font-weight: bold;">Sākums</a>
+    <a href="{{ url_for('redzet_rezerv') }}" style="text-decoration: none; color: black; font-weight: bold;">Rezervācijas</a>
+    <a href="{{ url_for('profils') }}" style="text-decoration: none; color: black; font-weight: bold;">Profils</a>
+</nav>
+
+<div style="margin: 40px;">
+    <h3>Profila informācija:</h3>
+    <p><strong>Vārds un uzvārds:</strong> {{ user['vards'] }}</p>
+    <p><strong>E-pasts:</strong> {{ user['epasts'] }}</p>
+    <p><strong>Informācija:</strong> {{ user['info'] }}</p>
+</div>
+
+{%endblock%}

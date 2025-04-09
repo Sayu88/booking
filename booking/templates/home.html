@@ -1,0 +1,143 @@
+{% extends "izkartojums.html" %}
+
+{% block saturs %}
+
+<div style="background-color: rgb(18, 41, 78); height: 45px; display: flex; justify-content: space-between;
+ align-items: center; padding: 0 20px;">
+    <h2 style="color: azure;">airBaltic Training</h2>
+    <form action="{{ url_for('iziet') }}" method="post" style="margin: 0;">
+        <button type="submit" class="btn btn-danger btn-sm">Izrakstīties</button>
+    </form>
+</div>
+
+<nav style="background-color: #CDDA32; padding: 10px; display: flex; justify-content: center; gap: 20px;">
+    <a href="{{ url_for('home') }}" style="text-decoration: none; color: black; font-weight: bold;">Sākums</a>
+    <a href="{{ url_for('redzet_rezerv') }}" style="text-decoration: none; color: black; font-weight: bold;">Rezervācijas</a>
+    <a href="{{ url_for('profils') }}" style="text-decoration: none; color: black; font-weight: bold;">Profils</a>
+</nav>
+
+<div id="kalendars" style="margin: 20px;"></div>
+
+<div class="modal fade" id="rezervacijasModal" tabindex="-1" aria-labelledby="modalNosaukums" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalNosaukums">Pievienot / Rediģēt rezervāciju</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Aizvērt"></button>
+            </div>
+            <div class="modal-body">
+                <form id="rezervacijasForma">
+                    <div class="mb-3">
+                        <label for="rezervacijasNosaukums" class="form-label">Rezervācijas nosaukums</label>
+                        <input type="text" class="form-control" id="rezervacijasNosaukums" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sakumaLaiks" class="form-label">Sākuma laiks</label>
+                        <input type="time" class="form-control" id="sakumaLaiks" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="beiguLaiks" class="form-label">Beigu laiks</label>
+                        <input type="time" class="form-control" id="beiguLaiks" required>
+                    </div>
+                    <input type="hidden" id="rezervacijasDatums">
+                    <input type="hidden" id="notikumaId">
+                    <button type="submit" class="btn btn-primary">Saglabāt</button>
+                    <button type="button" class="btn btn-danger" id="dzestNotikumu" style="display:none;">Dzēst</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+    #kalendars {
+        max-width: 100%;
+        height: 80vh;
+        overflow-y: auto;
+    }
+
+    @media (max-width: 768px) {
+        #kalendars {
+            height: 75vh;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {  //skripts iet tikai pec website ielades
+    var kalendarsElement = document.getElementById('kalendars'); 
+    var kalendars = new FullCalendar.Calendar(kalendarsElement, {
+        initialView: 'dayGridMonth', //kaa redz to kalendaru 
+        selectable: true, //ka var uzpiest
+        events: '/dabut_rezerv', //lade tos events
+
+        dateClick: function(info) {  //kad uzpiez uz kaut kadu datumu
+            document.getElementById('rezervacijasDatums').value = info.dateStr;
+            document.getElementById('notikumaId').value = "";
+            document.getElementById('rezervacijasNosaukums').value = "";
+            document.getElementById('sakumaLaiks').value = "";
+            document.getElementById('beiguLaiks').value = "";
+            document.getElementById('dzestNotikumu').style.display = "none"; 
+
+            var rezervacijasModal = new bootstrap.Modal(document.getElementById('rezervacijasModal'));
+            rezervacijasModal.show(); //ver valaa to pop up
+        },
+
+        eventClick: function(info) {
+            document.getElementById('rezervacijasDatums').value = info.event.startStr.split("T")[0]; //T ir tas formats
+            document.getElementById('notikumaId').value = info.event.id;
+            document.getElementById('rezervacijasNosaukums').value = info.event.title;
+            document.getElementById('sakumaLaiks').value = info.event.extendedProps.sakumaLaiks;
+            document.getElementById('beiguLaiks').value = info.event.extendedProps.beiguLaiks;
+            document.getElementById('dzestNotikumu').style.display = "block"; 
+
+            var rezervacijasModal = new bootstrap.Modal(document.getElementById('rezervacijasModal'));
+            rezervacijasModal.show();
+        }
+    });
+
+    kalendars.render(); //kipa atjaunina
+
+    document.getElementById('rezervacijasForma').addEventListener('submit', function(event) { //addEventListener - neparlade lapu
+        event.preventDefault(); 
+
+        var nosaukums = document.getElementById('rezervacijasNosaukums').value;
+        var datums = document.getElementById('rezervacijasDatums').value;
+        var sakumaLaiks = document.getElementById('sakumaLaiks').value;
+        var beiguLaiks = document.getElementById('beiguLaiks').value;
+        var notikumaId = document.getElementById('notikumaId').value;
+
+        fetch('/pievienot_rezerv', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }, //nosuta pieprasijumu lai izveidtou jaunu rezervaciju
+            body: JSON.stringify({ id: notikumaId, datums: datums, tituls: nosaukums, sakumaLaiks: sakumaLaiks, beiguLaiks: beiguLaiks })
+        })
+        .then(response => response.json())
+        .then(data => { 
+            alert(data.zina); 
+            kalendars.refetchEvents(); //gaidu response no servera puses tad parlade lapu
+        });
+
+        var rezervacijasModal = bootstrap.Modal.getInstance(document.getElementById('rezervacijasModal'));
+        rezervacijasModal.hide(); //aiztaisa pop up
+    });
+
+    document.getElementById('dzestNotikumu').addEventListener('click', function() {
+        var notikumaId = document.getElementById('notikumaId').value;
+        if (!notikumaId) return; //ja eksiste vai ne
+
+        fetch('/dzest_rezerv/' + notikumaId, { method: 'DELETE' })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.zina);
+            kalendars.refetchEvents(); //tas pats notiek ka gaida un parlade
+        });
+
+        var rezervacijasModal = bootstrap.Modal.getInstance(document.getElementById('rezervacijasModal'));
+        rezervacijasModal.hide();
+    });
+});
+</script>
+
+{% endblock %}
