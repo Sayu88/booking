@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, session, redirect, url_for
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import jsonify
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'super_slepena_atslega'
@@ -47,6 +48,7 @@ def login():
     
     return render_template('index.html', zina=zina)
 
+
 #reģistrācija
 @app.route("/signup", methods=['GET', 'POST'])
 def signup():
@@ -63,6 +65,10 @@ def signup():
         cur = con.cursor()
         cur.execute('SELECT * FROM login WHERE epasts=?', (epasts,))
         existing_user = cur.fetchone()
+        
+        if not epasts.endswith("@gmail.com"):
+            zina = "E-pastam jābūt ar domēnu @gmail.com"
+            return render_template("signup.html", zina=zina)
         
         if existing_user:
             zina = "Šis e-pasts jau ir reģistrēts."
@@ -98,9 +104,10 @@ def profils():
 @app.route("/pievienot_rezerv", methods=['POST'])
 def pievienot_rezerv():
     if 'epasts' not in session:
-        return jsonify({"zina": "Jums jābūt ielogotam!"}), 401
+        return jsonify({"zina": "Jums jābūt ielogotam!"})
 
     dati = request.get_json()
+    
     id = dati.get('id')
     datums = dati.get('datums')
     tituls = dati.get('tituls')
@@ -109,6 +116,25 @@ def pievienot_rezerv():
 
     con = get_db_connection()
     cur = con.cursor()
+    
+    laika_formats = "%H:%M"
+    sakums = datetime.strptime(sakumaLaiks, laika_formats)
+    beigas = datetime.strptime(beiguLaiks, laika_formats)
+    ilgums = (beigas - sakums).total_seconds() / 3600 #partaisa par stundam
+    
+    if ilgums <= 0:
+        return jsonify({"zina": "Beigu laikam jābūt pēc sākuma laika!"})
+    if ilgums < 1:
+        return jsonify({"zina": "Rezervācijai jābūt vismaz 1 stundu garai!"})
+    if ilgums > 4:
+        return jsonify({"zina": "Rezervācija nedrīkst pārsniegt 4 stundas!"}) #parbauda laiku
+
+    
+    cur.execute("""SELECT * FROM rezervacijas WHERE datums = ? AND sakumaLaiks = ? AND beiguLaiks = ? AND tituls = ?""", 
+                (datums, sakumaLaiks, beiguLaiks, tituls))
+    eksistejosais_rezerv = cur.fetchone()
+    if eksistejosais_rezerv:
+        return jsonify({"zina": "Rezervācija ar šādu nosaukumu un laiku jau eksistē!"})
 
     if id:
         cur.execute("UPDATE rezervacijas SET tituls=?, datums=?, sakumaLaiks=?, beiguLaiks=? WHERE id=?", 
@@ -116,6 +142,7 @@ def pievienot_rezerv():
     else:
         cur.execute("INSERT INTO rezervacijas (epasts, tituls, datums, sakumaLaiks, beiguLaiks) VALUES (?, ?, ?, ?, ?)", 
                     (session['epasts'], tituls, datums, sakumaLaiks, beiguLaiks))
+    
 
     con.commit()
     con.close()
@@ -149,11 +176,11 @@ def dzest_rezerv(id):
 @app.route("/redzet_rezerv")
 def redzet_rezerv():
     if 'epasts' not in session:
-        return redirect(url_for('login'))  # Ensure user is logged in
+        return redirect(url_for('login'))
 
     con = get_db_connection()
     cur = con.cursor()
-    cur.execute("SELECT id, tituls, datums, sakumaLaiks, beiguLaiks FROM rezervacijas WHERE epasts = ?", (session['epasts'],))
+    cur.execute("SELECT id, tituls, datums, sakumaLaiks, beiguLaiks FROM rezervacijas WHERE epasts = ? ORDER BY datums ASC", (session['epasts'],))
     rezervacijas = cur.fetchall()
 
     return render_template("redzet_rezerv.html", rezervacijas=rezervacijas)

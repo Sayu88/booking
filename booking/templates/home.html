@@ -41,8 +41,10 @@
                     </div>
                     <input type="hidden" id="rezervacijasDatums">
                     <input type="hidden" id="notikumaId">
+                    <div class="btn-group" role="group" aria-label="Basic example">
                     <button type="submit" class="btn btn-primary">Saglabāt</button>
                     <button type="button" class="btn btn-danger" id="dzestNotikumu" style="display:none;">Dzēst</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -73,12 +75,18 @@ document.addEventListener('DOMContentLoaded', function() {  //skripts iet tikai 
         events: '/dabut_rezerv', //lade tos events
 
         dateClick: function(info) {  //kad uzpiez uz kaut kadu datumu
-            document.getElementById('rezervacijasDatums').value = info.dateStr;
+            document.getElementById('rezervacijasDatums').value = info.datumsStr;
             document.getElementById('notikumaId').value = "";
             document.getElementById('rezervacijasNosaukums').value = "";
             document.getElementById('sakumaLaiks').value = "";
             document.getElementById('beiguLaiks').value = "";
             document.getElementById('dzestNotikumu').style.display = "none"; 
+            let today = new Date().toISOString().split('T')[0]; //toISOString partaisa datumu par string
+            if (info.datumsStr < today) {
+                alert("Nevar rezervēt iepriekšējos datumos!"); //nevar rezervet ieprieksejos datumos 
+                return;
+}
+
 
             var rezervacijasModal = new bootstrap.Modal(document.getElementById('rezervacijasModal'));
             rezervacijasModal.show(); //ver valaa to pop up
@@ -99,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {  //skripts iet tikai 
 
     kalendars.render(); //kipa atjaunina
 
-    document.getElementById('rezervacijasForma').addEventListener('submit', function(event) { //addEventListener - neparlade lapu
+    document.getElementById('rezervacijasForma').addEventListener('submit', function(event) { //addEventListener - neparlade lapu, kad ieliek jaunu rezervaciju
         event.preventDefault(); 
 
         var nosaukums = document.getElementById('rezervacijasNosaukums').value;
